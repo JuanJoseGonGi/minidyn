@@ -38,10 +38,10 @@ func (i *index) clear() {
 	i.refs = map[string]string{}
 }
 
-func (i *index) putData(key string, item map[string]*dynamodb.AttributeValue) {
-	indexKey, ok := i.keySchema.getKey(i.table.attributesDef, item)
-	if !ok {
-		return
+func (i *index) putData(key string, item map[string]*dynamodb.AttributeValue) error {
+	indexKey, err := i.keySchema.getKey(i.table.attributesDef, item)
+	if err != nil {
+		return err
 	}
 
 	_, exists := i.refs[key]
@@ -52,12 +52,14 @@ func (i *index) putData(key string, item map[string]*dynamodb.AttributeValue) {
 		i.sortedKeys = append(i.sortedKeys, indexKey)
 		sort.Strings(i.sortedKeys)
 	}
+
+	return nil
 }
 
-func (i *index) updateData(key string, item, oldItem map[string]*dynamodb.AttributeValue) {
-	indexKey, ok := i.keySchema.getKey(i.table.attributesDef, item)
-	if !ok {
-		return
+func (i *index) updateData(key string, item, oldItem map[string]*dynamodb.AttributeValue) error {
+	indexKey, err := i.keySchema.getKey(i.table.attributesDef, item)
+	if err != nil {
+		return err
 	}
 
 	old, exists := i.refs[key]
@@ -73,24 +75,28 @@ func (i *index) updateData(key string, item, oldItem map[string]*dynamodb.Attrib
 
 		sort.Strings(i.sortedKeys)
 	}
+
+	return nil
 }
 
-func (i *index) delete(key string, item map[string]*dynamodb.AttributeValue) {
+func (i *index) delete(key string, item map[string]*dynamodb.AttributeValue) error {
 	delete(i.refs, key)
 
-	indexKey, ok := i.keySchema.getKey(i.table.attributesDef, item)
-	if !ok {
-		return
+	indexKey, err := i.keySchema.getKey(i.table.attributesDef, item)
+	if err != nil {
+		return err
 	}
 
 	pos := sort.SearchStrings(i.sortedKeys, indexKey)
 	if pos == len(i.sortedKeys) {
-		return
+		return err
 	}
 
 	copy(i.sortedKeys[pos:], i.sortedKeys[pos+1:])
 	i.sortedKeys[len(i.sortedKeys)-1] = ""
 	i.sortedKeys = i.sortedKeys[:len(i.sortedKeys)-1]
+
+	return nil
 }
 
 func (i *index) startSearch() {
